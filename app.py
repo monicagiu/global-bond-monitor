@@ -15,20 +15,22 @@ st.caption("10-year government bond yields and spreads. "
 # Download the data once and remember it for 12 hours, so the page loads fast
 @st.cache_data(ttl=12 * 60 * 60)
 def load_data():
-    monthly = to_monthly(get_all_yields())
+    daily = get_all_yields()          # daily data (needed for the yield curve)
+    daily.index.name = "Date"
+    monthly = to_monthly(daily)       # monthly averages (for the other charts)
     monthly.index.name = "Date"
-    return monthly
+    return daily, monthly
 
 
-monthly = load_data()
+daily, monthly = load_data()
 
 # Let the user choose how far back to look
 first_year = int(monthly.dropna().index.year.min())
 start_year = st.slider("Show data from", first_year, 2026, 2015)
 data = monthly[monthly.index.year >= start_year]
 
-tab_yields, tab_spreads, tab_risk = st.tabs(
-    ["10-year yields", "Spreads vs Germany", "Bond risk calculator"])
+tab_yields, tab_spreads, tab_curve, tab_risk = st.tabs(
+    ["10-year yields", "Spreads vs Germany", "US yield curve", "Bond risk calculator"])
 
 # ---- Tab 1: 10-year yields ----
 with tab_yields:
@@ -102,3 +104,45 @@ with tab_risk:
     st.caption("The gap between the curved line and the straight line is convexity: "
                "when yields fall the bond gains more, and when yields rise it loses "
                "less, than duration alone predicts.")
+    
+    # ---- Tab: US yield curve ----
+with tab_curve:
+    us = daily[["US 2Y", "US 5Y", "US 10Y", "US 30Y"]].dropna()
+    maturities = [2, 5, 10, 30]
+    latest = us.iloc[-1]
+
+    # Let the user pick a past date to compare against (default: one year ago)
+    compare_date = st.date_input(
+        "Compare the latest curve with",
+        value=(latest.name - pd.DateOffset(years=1)).date(),
+        min_value=us.index[0].date(),
+        max_value=latest.name.date(),
+    )
+    # Use the last trading day on or before the chosen date
+    past = us.loc[:pd.Timestamp(compare_date)].iloc[-1]
+
+    curves = pd.DataFrame({
+        f"Latest ({latest.name:%d %b %Y})": latest.values,
+        f"{past.name:%d %b %Y}": past.values,
+    }, index=maturities)
+    curves.index.name = "Maturity (years)"
+
+    fig = px.line(curves, markers=True,
+                  labels={"value": "Yield (%)", "variable": "Curve"})
+    st.plotly_chart(fig)
+
+    # The 10Y - 2Y slope: below zero means the curve is inverted
+    st.markdown("#### 10Y – 2Y slope")
+    slope = ((us["US 10Y"] - us["US 2Y"]) * 100).rename("10Y - 2Y (bp)")
+    slope = slope[slope.index.year >= start_year]
+
+    st.metric("Latest 10Y – 2Y slope", f"{slope.iloc[-1]:.0f} bp",
+              help="Negative = inverted curve (short-term rates above long-term rates)")
+
+    fig = px.line(slope.to_frame(), labels={"value": "Slope (bp)", "variable": ""})
+    fig.add_hline(y=0, line_dash="dash")
+    fig.update_layout(showlegend=False)
+    st.plotly_chart(fig)
+    st.caption("When the slope falls below zero, the curve is 'inverted': investors "
+               "earn more on short-term than long-term bonds. Inversions have often "
+               "come before US recessions, though not every time.")

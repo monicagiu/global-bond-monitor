@@ -11,12 +11,14 @@ Growing up in Italy, I heard about the "spread" on the evening news long before 
 - **10-year yields:** monthly yields for the US, Germany, Italy and the UK
 - **Spreads vs Germany:** the Italy–Germany (BTP–Bund) and UK–Germany spreads in basis points, with the latest available values
 - **Bond risk calculator:** price, modified duration and convexity for any fixed-coupon bond, with rate shock scenarios (±50 to ±200bp) comparing the actual price change with duration and duration-plus-convexity estimates
+- **US yield curve:** the latest 2Y–30Y Treasury curve compared with any past date, and the 10Y–2Y slope over time, highlighting periods of inversion
 
 ## What I noticed
 - The BTP–Bund spread has narrowed from above 300bp in 2013 to around 80bp in 2026, the lowest level in the period shown. Markets now see Italian debt as far less risky than a decade ago.
 - The biggest spikes, in 2018 and 2022, line up with Italy's budget dispute with the EU and the start of ECB rate hikes.
 - What surprised me most: since 2024, the UK has paid a wider spread over Germany than Italy has (around 177bp vs 80bp).
 - For a 30-year bond, a 2% fall in yields raises the price by about 45%, while a 2% rise lowers it by only about 28%. This is positive convexity, and duration alone misses it.
+- The US curve was inverted from mid-2022 to late 2024, reaching about −100bp in 2023. Over the past year, short-term yields have risen more than long-term yields (a "bear flattening"), and the 10Y–2Y slope is now around 38bp.
 
 ## Data
 - US Treasury yields: FRED (Federal Reserve Bank of St. Louis), daily, averaged to monthly
