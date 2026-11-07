@@ -1,6 +1,8 @@
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+import numpy as np
+from bond_math import price, modified_duration, convexity, rate_shock
 
 from data import get_all_yields, to_monthly
 
@@ -25,7 +27,8 @@ first_year = int(monthly.dropna().index.year.min())
 start_year = st.slider("Show data from", first_year, 2026, 2015)
 data = monthly[monthly.index.year >= start_year]
 
-tab_yields, tab_spreads = st.tabs(["10-year yields", "Spreads vs Germany"])
+tab_yields, tab_spreads, tab_risk = st.tabs(
+    ["10-year yields", "Spreads vs Germany", "Bond risk calculator"])
 
 # ---- Tab 1: 10-year yields ----
 with tab_yields:
@@ -49,3 +52,53 @@ with tab_spreads:
 
     fig = px.line(spreads, labels={"value": "Spread (bp)", "variable": "Spread"})
     st.plotly_chart(fig)
+
+    # ---- Tab 3: bond risk calculator ----
+with tab_risk:
+    st.write("Enter a bond's details to see its price and how sensitive it is "
+             "to changes in interest rates. Coupons are paid twice a year.")
+
+    c1, c2, c3 = st.columns(3)
+    coupon = c1.number_input("Coupon (% per year)", 0.0, 15.0, 4.0, 0.25) / 100
+    years = c2.number_input("Years to maturity", 1, 50, 10)
+    ytm = c3.number_input("Yield to maturity (%)", 0.0, 15.0, 4.0, 0.05) / 100
+    face = 100
+
+    p = price(face, coupon, years, ytm)
+    md = modified_duration(face, coupon, years, ytm)
+    cx = convexity(face, coupon, years, ytm)
+
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Price (per 100 face value)", f"{p:.2f}")
+    m2.metric("Modified duration", f"{md:.2f}",
+              help="Approximate % price change for a 1% move in yields")
+    m3.metric("Convexity", f"{cx:.1f}",
+              help="How much the price-yield relationship curves")
+
+    # Scenario table: what happens to the price if rates move?
+    st.markdown("#### Rate shock scenarios")
+    rows = []
+    for shock in [-200, -100, -50, 50, 100, 200]:
+        actual, dur_est, dur_cx_est = rate_shock(face, coupon, years, ytm, shock)
+        rows.append({
+            "Yield change": f"{shock:+d} bp",
+            "Actual price change": f"{actual:+.2%}",
+            "Duration estimate": f"{dur_est:+.2%}",
+            "Duration + convexity estimate": f"{dur_cx_est:+.2%}",
+        })
+    st.dataframe(pd.DataFrame(rows), hide_index=True)
+
+    # Chart: the real price-yield curve vs the straight-line duration estimate
+    st.markdown("#### Price vs yield")
+    yield_range = np.linspace(max(ytm - 0.03, 0.0), ytm + 0.03, 61)
+    curve = pd.DataFrame({
+        "Yield (%)": yield_range * 100,
+        "Actual price": [price(face, coupon, years, y) for y in yield_range],
+        "Duration-only estimate": [p * (1 - md * (y - ytm)) for y in yield_range],
+    })
+    fig = px.line(curve, x="Yield (%)", y=["Actual price", "Duration-only estimate"],
+                  labels={"value": "Price", "variable": ""})
+    st.plotly_chart(fig)
+    st.caption("The gap between the curved line and the straight line is convexity: "
+               "when yields fall the bond gains more, and when yields rise it loses "
+               "less, than duration alone predicts.")
