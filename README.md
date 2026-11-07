@@ -23,7 +23,6 @@ Growing up in Italy, I heard about the "spread" on the evening news long before 
 ## What I learned
 - How to source and clean real market data, including combining daily US data with monthly European data
 - How to turn analysis into an interactive tool that others can use
-- [one thing about bonds you understand better now]
 
 ## Built with
 Python, pandas, Plotly and Streamlit. Developed in GitHub Codespaces with GitHub Copilot.
